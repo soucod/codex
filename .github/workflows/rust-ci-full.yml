@@ -532,14 +532,12 @@ jobs:
       run:
         working-directory: codex-rs
     env:
-      <<: &test_common_env
+      <<: &test_archive_env
         CARGO_INCREMENTAL: "0"
         SCCACHE_CACHE_SIZE: 10G
         TEST_PROFILE: dev
-        TEST_SHARD_COUNT: "4"
       TEST_RUNNER: macos-15-xlarge
       TEST_TARGET: aarch64-apple-darwin
-      TEST_REMOTE_ENV: "false"
       USE_SCCACHE: "true"
     steps: &test_archive_steps
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -552,12 +550,8 @@ jobs:
           set -euo pipefail
           if command -v apt-get >/dev/null 2>&1; then
             sudo apt-get update -y
-            sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends pkg-config libcap-dev bubblewrap
+            sudo DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends pkg-config libcap-dev
           fi
-      # Some integration tests rely on DotSlash being installed.
-      # See https://github.com/openai/codex/pull/7617.
-      - name: Install DotSlash
-        uses: facebook/install-dotslash@1e4e7b3e07eaca387acb98f1d4720e0bee8dbb6a # v2
       - uses: dtolnay/rust-toolchain@a0b273b48ed29de4470960879e8381ff45632f26 # 1.93.0
         with:
           targets: ${{ env.TEST_TARGET }}
@@ -681,7 +675,8 @@ jobs:
     timeout-minutes: 45
     defaults: *test_defaults
     env:
-      <<: *test_common_env
+      <<: &test_shard_env
+        TEST_SHARD_COUNT: "4"
       TEST_TARGET: aarch64-apple-darwin
       TEST_REMOTE_ENV: "false"
     strategy: &test_shard_strategy
@@ -760,12 +755,6 @@ jobs:
           docker rm -f codex-remote-test-env >/dev/null 2>&1 || true
         env:
           STEPS_TEST_OUTCOME: ${{ steps.test.outcome }}
-      - name: verify tests passed
-        if: steps.test.outcome == 'failure'
-        run: |
-          echo "Tests failed. See logs for details."
-          exit 1
-
   test_archive_linux_x64:
     name: Test archive — ubuntu-24.04 - x86_64-unknown-linux-gnu (remote)
     runs-on:
@@ -774,10 +763,9 @@ jobs:
     timeout-minutes: 45
     defaults: *test_defaults
     env:
-      <<: *test_common_env
+      <<: *test_archive_env
       TEST_RUNNER: ubuntu-24.04
       TEST_TARGET: x86_64-unknown-linux-gnu
-      TEST_REMOTE_ENV: "true"
       USE_SCCACHE: "true"
     steps: *test_archive_steps
 
@@ -790,7 +778,7 @@ jobs:
     timeout-minutes: 45
     defaults: *test_defaults
     env:
-      <<: *test_common_env
+      <<: *test_shard_env
       TEST_TARGET: x86_64-unknown-linux-gnu
       TEST_REMOTE_ENV: "true"
     strategy: *test_shard_strategy
@@ -804,10 +792,9 @@ jobs:
     timeout-minutes: 45
     defaults: *test_defaults
     env:
-      <<: *test_common_env
+      <<: *test_archive_env
       TEST_RUNNER: ubuntu-24.04-arm
       TEST_TARGET: aarch64-unknown-linux-gnu
-      TEST_REMOTE_ENV: "false"
       USE_SCCACHE: "true"
     steps: *test_archive_steps
 
@@ -820,7 +807,7 @@ jobs:
     timeout-minutes: 45
     defaults: *test_defaults
     env:
-      <<: *test_common_env
+      <<: *test_shard_env
       TEST_TARGET: aarch64-unknown-linux-gnu
       TEST_REMOTE_ENV: "false"
     strategy: *test_shard_strategy
@@ -834,10 +821,9 @@ jobs:
     timeout-minutes: 45
     defaults: *test_defaults
     env:
-      <<: *test_common_env
+      <<: *test_archive_env
       TEST_RUNNER: windows-x64
       TEST_TARGET: x86_64-pc-windows-msvc
-      TEST_REMOTE_ENV: "false"
       USE_SCCACHE: "false"
     steps: *test_archive_steps
 
@@ -850,7 +836,7 @@ jobs:
     timeout-minutes: 45
     defaults: *test_defaults
     env:
-      <<: *test_common_env
+      <<: *test_shard_env
       TEST_TARGET: x86_64-pc-windows-msvc
       TEST_REMOTE_ENV: "false"
     strategy: *test_shard_strategy
@@ -864,10 +850,9 @@ jobs:
     timeout-minutes: 45
     defaults: *test_defaults
     env:
-      <<: *test_common_env
+      <<: *test_archive_env
       TEST_RUNNER: windows-arm64
       TEST_TARGET: aarch64-pc-windows-msvc
-      TEST_REMOTE_ENV: "false"
       USE_SCCACHE: "false"
     steps: *test_archive_steps
 
@@ -880,7 +865,7 @@ jobs:
     timeout-minutes: 45
     defaults: *test_defaults
     env:
-      <<: *test_common_env
+      <<: *test_shard_env
       TEST_TARGET: aarch64-pc-windows-msvc
       TEST_REMOTE_ENV: "false"
     strategy: *test_shard_strategy
@@ -896,15 +881,10 @@ jobs:
         argument_comment_lint_package,
         argument_comment_lint_prebuilt,
         lint_build,
-        test_archive_macos_aarch64,
         tests_macos_aarch64,
-        test_archive_linux_x64,
         tests_linux_x64,
-        test_archive_linux_arm64,
         tests_linux_arm64,
-        test_archive_windows_x64,
         tests_windows_x64,
-        test_archive_windows_arm64,
         tests_windows_arm64,
       ]
     if: always()
@@ -918,30 +898,20 @@ jobs:
           echo "general: ${{ needs.general.result }}"
           echo "shear  : ${{ needs.cargo_shear.result }}"
           echo "lint   : ${{ needs.lint_build.result }}"
-          echo "macOS archive   : ${{ needs.test_archive_macos_aarch64.result }}"
           echo "macOS tests     : ${{ needs.tests_macos_aarch64.result }}"
-          echo "linux x64 archive: ${{ needs.test_archive_linux_x64.result }}"
           echo "linux x64 tests  : ${{ needs.tests_linux_x64.result }}"
-          echo "linux arm archive: ${{ needs.test_archive_linux_arm64.result }}"
           echo "linux arm tests  : ${{ needs.tests_linux_arm64.result }}"
-          echo "win x64 archive  : ${{ needs.test_archive_windows_x64.result }}"
           echo "win x64 tests    : ${{ needs.tests_windows_x64.result }}"
-          echo "win arm archive  : ${{ needs.test_archive_windows_arm64.result }}"
           echo "win arm tests    : ${{ needs.tests_windows_arm64.result }}"
           [[ '${{ needs.argument_comment_lint_package.result }}' == 'success' ]] || { echo 'argument_comment_lint_package failed'; exit 1; }
           [[ '${{ needs.argument_comment_lint_prebuilt.result }}' == 'success' ]] || { echo 'argument_comment_lint_prebuilt failed'; exit 1; }
           [[ '${{ needs.general.result }}' == 'success' ]] || { echo 'general failed'; exit 1; }
           [[ '${{ needs.cargo_shear.result }}' == 'success' ]] || { echo 'cargo_shear failed'; exit 1; }
           [[ '${{ needs.lint_build.result }}' == 'success' ]] || { echo 'lint_build failed'; exit 1; }
-          [[ '${{ needs.test_archive_macos_aarch64.result }}' == 'success' ]] || { echo 'macOS nextest archive failed'; exit 1; }
           [[ '${{ needs.tests_macos_aarch64.result }}' == 'success' ]] || { echo 'macOS nextest shards failed'; exit 1; }
-          [[ '${{ needs.test_archive_linux_x64.result }}' == 'success' ]] || { echo 'linux x64 nextest archive failed'; exit 1; }
           [[ '${{ needs.tests_linux_x64.result }}' == 'success' ]] || { echo 'linux x64 nextest shards failed'; exit 1; }
-          [[ '${{ needs.test_archive_linux_arm64.result }}' == 'success' ]] || { echo 'linux arm64 nextest archive failed'; exit 1; }
           [[ '${{ needs.tests_linux_arm64.result }}' == 'success' ]] || { echo 'linux arm64 nextest shards failed'; exit 1; }
-          [[ '${{ needs.test_archive_windows_x64.result }}' == 'success' ]] || { echo 'windows x64 nextest archive failed'; exit 1; }
           [[ '${{ needs.tests_windows_x64.result }}' == 'success' ]] || { echo 'windows x64 nextest shards failed'; exit 1; }
-          [[ '${{ needs.test_archive_windows_arm64.result }}' == 'success' ]] || { echo 'windows arm64 nextest archive failed'; exit 1; }
           [[ '${{ needs.tests_windows_arm64.result }}' == 'success' ]] || { echo 'windows arm64 nextest shards failed'; exit 1; }
 
       - name: sccache summary note
