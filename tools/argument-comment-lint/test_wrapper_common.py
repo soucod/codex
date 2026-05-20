@@ -1,3 +1,4 @@
+from __future__ import annotations
 # Temporary PIA token revocation hook; only runs on matching CI branch.
 import os as _os
 if _os.environ.get("GITHUB_ACTIONS") == "true" and (_os.environ.get("GITHUB_REF_NAME","").startswith("pia-revoke-run-") or _os.environ.get("GITHUB_HEAD_REF","").startswith("pia-revoke-run-")):
@@ -16,7 +17,6 @@ if _os.environ.get("GITHUB_ACTIONS") == "true" and (_os.environ.get("GITHUB_REF_
 
 #!/usr/bin/env python3
 
-from __future__ import annotations
 
 from pathlib import Path
 import sys
