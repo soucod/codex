@@ -7657,6 +7657,12 @@
       },
       "ConfigRequirements": {
         "properties": {
+          "allowAppshots": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
           "allowManagedHooksOnly": {
             "type": [
               "boolean",
