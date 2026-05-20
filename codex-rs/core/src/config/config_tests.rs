@@ -1962,7 +1962,7 @@ async fn default_permissions_can_select_builtin_profile_without_permissions_tabl
     .await?;
 
     assert!(config.explicit_permission_profile_mode);
-    assert!(config.custom_permission_profile_ids.is_empty());
+    assert!(config.custom_permission_profiles.is_empty());
     let policy = config.permissions.file_system_sandbox_policy();
     assert_eq!(
         config
@@ -2610,7 +2610,7 @@ async fn permissions_profiles_allow_direct_write_roots_outside_workspace_root()
                 entries: BTreeMap::from([(
                     "dev".to_string(),
                     PermissionProfileToml {
-                        description: None,
+                        description: Some("Workspace access.".to_string()),
                         extends: None,
                         workspace_roots: None,
                         filesystem: Some(FilesystemPermissionsToml {
@@ -2635,8 +2635,11 @@ async fn permissions_profiles_allow_direct_write_roots_outside_workspace_root()
     .await?;
 
     assert_eq!(
-        config.custom_permission_profile_ids,
-        vec!["dev".to_string()]
+        config.custom_permission_profiles,
+        vec![CustomPermissionProfileSummary {
+            id: "dev".to_string(),
+            description: Some("Workspace access.".to_string()),
+        }]
     );
     let memories_root = AbsolutePathBuf::from_absolute_path(std::fs::canonicalize(
         codex_home.path().join("memories"),
@@ -7998,7 +8001,7 @@ async fn test_precedence_fixture_with_o3_profile() -> std::io::Result<()> {
                 windows_sandbox_private_desktop: true,
             },
             explicit_permission_profile_mode: false,
-            custom_permission_profile_ids: Vec::new(),
+            custom_permission_profiles: Vec::new(),
             approvals_reviewer: ApprovalsReviewer::User,
             enforce_residency: Constrained::allow_any(/*initial_value*/ None),
             user_instructions: None,
@@ -8452,7 +8455,7 @@ async fn test_precedence_fixture_with_gpt3_profile() -> std::io::Result<()> {
             windows_sandbox_private_desktop: true,
         },
         explicit_permission_profile_mode: false,
-        custom_permission_profile_ids: Vec::new(),
+        custom_permission_profiles: Vec::new(),
         approvals_reviewer: ApprovalsReviewer::User,
         enforce_residency: Constrained::allow_any(/*initial_value*/ None),
         user_instructions: None,
@@ -8620,7 +8623,7 @@ async fn test_precedence_fixture_with_zdr_profile() -> std::io::Result<()> {
             windows_sandbox_private_desktop: true,
         },
         explicit_permission_profile_mode: false,
-        custom_permission_profile_ids: Vec::new(),
+        custom_permission_profiles: Vec::new(),
         approvals_reviewer: ApprovalsReviewer::User,
         enforce_residency: Constrained::allow_any(/*initial_value*/ None),
         user_instructions: None,
@@ -8773,7 +8776,7 @@ async fn test_precedence_fixture_with_gpt5_profile() -> std::io::Result<()> {
             windows_sandbox_private_desktop: true,
         },
         explicit_permission_profile_mode: false,
-        custom_permission_profile_ids: Vec::new(),
+        custom_permission_profiles: Vec::new(),
         approvals_reviewer: ApprovalsReviewer::User,
         enforce_residency: Constrained::allow_any(/*initial_value*/ None),
         user_instructions: None,
