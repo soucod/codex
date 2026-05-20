@@ -226,6 +226,7 @@ pub(crate) struct RemoteControlWebsocket {
     reconnect_attempt: u64,
     enrollment: Option<RemoteControlEnrollment>,
     auth_recovery: UnauthorizedRecovery,
+    auth_change_rx: watch::Receiver<u64>,
     client_tracker: Arc<Mutex<ClientTracker>>,
     state: Arc<Mutex<WebsocketState>>,
     server_event_rx: Arc<Mutex<mpsc::Receiver<super::QueuedServerEnvelope>>>,
@@ -321,6 +322,7 @@ impl RemoteControlWebsocket {
         );
         let (outbound_buffer, used_rx) = BoundedOutboundBuffer::new();
         let auth_recovery = auth_manager.unauthorized_recovery();
+        let auth_change_rx = auth_manager.auth_change_receiver();
 
         Self {
             remote_control_url: config.remote_control_url,
@@ -334,6 +336,7 @@ impl RemoteControlWebsocket {
             reconnect_attempt: 0,
             enrollment: None,
             auth_recovery,
+            auth_change_rx,
             client_tracker: Arc::new(Mutex::new(client_tracker)),
             state: Arc::new(Mutex::new(WebsocketState {
                 outbound_buffer,
@@ -516,6 +519,14 @@ impl RemoteControlWebsocket {
                                 return ConnectOutcome::Shutdown;
                             }
                             return ConnectOutcome::Disabled;
+                        }
+                        changed = self.auth_change_rx.changed() => {
+                            if changed.is_err() {
+                                return ConnectOutcome::Shutdown;
+                            }
+                            self.auth_recovery = self.auth_manager.unauthorized_recovery();
+                            self.reconnect_attempt = 0;
+                            info!("retrying app-server remote control websocket after auth changed");
                         }
                         _ = tokio::time::sleep(reconnect_delay) => {}
                     }
