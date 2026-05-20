@@ -3742,6 +3742,7 @@ dependencies = [
  "async-trait",
  "chrono",
  "codex-git-utils",
+ "codex-install-context",
  "codex-protocol",
  "codex-rollout",
  "codex-state",
